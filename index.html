@@ -82,7 +82,7 @@ nav.scrolled{box-shadow:0 2px 20px rgba(0,0,0,0.08)}
 .mobile-menu a{font-family:var(--serif);font-size:2rem;font-style:italic;color:var(--text);text-decoration:none;transition:color 0.2s}
 .mobile-menu a:hover{color:var(--accent)}
 
-/* ── HERO (DESKTOP: AVATAR RIGHT, MOBILE: AVATAR TOP) ── */
+/* ── HERO ── */
 #hero{
   min-height:100vh;
   display:flex;
@@ -155,11 +155,6 @@ nav.scrolled{box-shadow:0 2px 20px rgba(0,0,0,0.08)}
   border-radius:50%;
   display:block;
 }
-.hero-visual:/*:before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,0.4),transparent 60%);
-  pointer-events:none; 
-} */
 
 /* ── SECTIONS ── */
 .section-wrap{max-width:1120px;margin:0 auto;padding:80px 2.5rem}
@@ -384,7 +379,7 @@ footer{text-align:center;padding:2rem;font-size:0.77rem;color:var(--muted);borde
 .fade-up{opacity:0;transform:translateY(28px);transition:opacity 0.65s ease,transform 0.65s ease}
 .fade-up.visible{opacity:1;transform:translateY(0)}
 
-/* ── RESPONSIVE: MOBILE AVATAR ABOVE NAME ── */
+/* ── RESPONSIVE ── */
 @media(max-width:820px){
   .hero-inner{
     grid-template-columns:1fr;
@@ -401,7 +396,7 @@ footer{text-align:center;padding:2rem;font-size:0.77rem;color:var(--muted);borde
     width:160px;
     height:160px;
     font-size:4rem;
-    order:-1;         /* move avatar above text on mobile */
+    order:-1;
     margin:0 auto 0.75rem;
   }
   .about-grid{
@@ -449,14 +444,18 @@ footer{text-align:center;padding:2rem;font-size:0.77rem;color:var(--muted);borde
   <a href="#future" onclick="closeMenu()">Future Goals</a><a href="#contact" onclick="closeMenu()">Contact</a>
 </div>
 
-<!-- HERO: desktop side-by-side (avatar right), mobile avatar above -->
+<!-- HERO -->
 <section id="hero">
   <div class="hero-inner">
     <div>
       <span class="hero-tag">🧬 Biotech · Bioinformatics · Data Science</span>
       <h1 class="hero-name">Aditya<br/><em>Kumar Shah</em></h1>
       <p class="hero-tagline">Biotechnology student with interests in genetic engineering, bioinformatics and computational biology — building the foundation for tomorrow's science.</p>
-      <div class="hero-ctas"><a href="#certifications" class="btn-primary">📜 Certifications</a><a href="#future" class="btn-outline">🎯 Future Vision</a><a href="Deam_CV.pdf" download class="btn-outline">⬇ Resume</a></div>
+      <div class="hero-ctas">
+        <a href="#certifications" class="btn-primary">📜 Certifications</a>
+        <a href="#future" class="btn-outline">🎯 Future Vision</a>
+        <a href="#" id="resumeDownloadBtn" class="btn-outline">⬇ Resume</a>
+      </div>
     </div>
     <div class="hero-visual">
       <img src="image/myimage.jpg" alt="Aditya Kumar Shah - Profile" onerror="this.src='https://placehold.co/400x400?text=Aditya'">
@@ -567,6 +566,21 @@ function openLightboxWithImage(src) {
   lbImg.src = src;
   document.getElementById('lightbox').classList.add('active');
   lbDownloadBtn.onclick = () => downloadImage(src, 'Certificate');
+  // push a dummy hash state to handle back gesture closing
+  if (window.location.hash !== '#lightbox') {
+    window.location.hash = '#lightbox';
+  }
+}
+
+function closeLightbox() { 
+  document.getElementById('lightbox').classList.remove('active');
+  if (window.location.hash === '#lightbox') {
+    history.back();
+  }
+}
+
+function closeLbOutside(e) { 
+  if(e.target === document.getElementById('lightbox')) closeLightbox();
 }
 
 function downloadImage(imgUrl, filename) {
@@ -592,8 +606,29 @@ function downloadImage(imgUrl, filename) {
     });
 }
 
-function closeLightbox() { document.getElementById('lightbox').classList.remove('active');}
-function closeLbOutside(e) { if(e.target === document.getElementById('lightbox')) closeLightbox(); }
+function downloadResume() {
+  const resumeUrl = 'Deam_CV.pdf';
+  fetch(resumeUrl)
+    .then(res => res.blob())
+    .then(blob => {
+      const link = document.createElement('a');
+      const objectUrl = URL.createObjectURL(blob);
+      link.href = objectUrl;
+      link.download = 'Aditya_Kumar_Shah_Resume.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    })
+    .catch(() => {
+      const a = document.createElement('a');
+      a.href = resumeUrl;
+      a.download = 'Aditya_Kumar_Shah_Resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+}
 
 // Theme, nav, filters, scroll
 const root = document.documentElement;
@@ -621,6 +656,19 @@ const obs = new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isInters
 document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
 renderCerts();
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeLightbox();});
+
+// Handle back gesture to close lightbox
+window.addEventListener('popstate', function(event) {
+  if (document.getElementById('lightbox').classList.contains('active')) {
+    closeLightbox();
+  }
+});
+
+// Resume download with no history interference
+document.getElementById('resumeDownloadBtn').addEventListener('click', function(e) {
+  e.preventDefault();
+  downloadResume();
+});
 </script>
 </body>
 </html>
