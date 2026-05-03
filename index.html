@@ -542,46 +542,67 @@ function renderCerts() {
     `;
     container.appendChild(card);
   });
-  document.querySelectorAll('.btn-preview').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const imgSrc = btn.getAttribute('data-img');
-      openLightboxWithImage(imgSrc);
-    });
-  });
-  document.querySelectorAll('.btn-download').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const imgSrc = btn.getAttribute('data-img');
-      const title = btn.getAttribute('data-title') || 'certificate';
-      downloadImage(imgSrc, title);
-    });
-  });
 }
 
+// ----- EVENT DELEGATION for preview & download (works even after filter) -----
+document.getElementById('certificatesGrid')?.addEventListener('click', (e) => {
+  const previewBtn = e.target.closest('.btn-preview');
+  if (previewBtn) {
+    e.stopPropagation();
+    const imgSrc = previewBtn.getAttribute('data-img');
+    if (imgSrc) openLightboxWithImage(imgSrc);
+    return;
+  }
+  const downloadBtn = e.target.closest('.btn-download');
+  if (downloadBtn) {
+    e.stopPropagation();
+    const imgSrc = downloadBtn.getAttribute('data-img');
+    const title = downloadBtn.getAttribute('data-title') || 'certificate';
+    if (imgSrc) downloadImage(imgSrc, title);
+  }
+});
+
+// ----- Lightbox with history state so back gesture closes lightbox (not the page) -----
 function openLightboxWithImage(src) {
   const lbImg = document.getElementById('lbPreviewImg');
   const lbDownloadBtn = document.getElementById('lightboxDownloadBtn');
   if (!src) return;
   lbImg.src = src;
-  document.getElementById('lightbox').classList.add('active');
+  const lightbox = document.getElementById('lightbox');
+  lightbox.classList.add('active');
   lbDownloadBtn.onclick = () => downloadImage(src, 'Certificate');
-  // push a dummy hash state to handle back gesture closing
-  if (window.location.hash !== '#lightbox') {
-    window.location.hash = '#lightbox';
+  // Push a state to allow back gesture to close lightbox instead of leaving page
+  if (!window.lightboxStateActive) {
+    window.lightboxStateActive = true;
+    history.pushState({ lightboxOpen: true }, '');
   }
 }
 
-function closeLightbox() { 
-  document.getElementById('lightbox').classList.remove('active');
-  if (window.location.hash === '#lightbox') {
-    history.back();
+function closeLightbox() {
+  const lightbox = document.getElementById('lightbox');
+  if (!lightbox.classList.contains('active')) return;
+  lightbox.classList.remove('active');
+  if (window.lightboxStateActive) {
+    window.lightboxStateActive = false;
+    // We don't call history.back() here because popstate will handle it
   }
 }
 
-function closeLbOutside(e) { 
+function closeLbOutside(e) {
   if(e.target === document.getElementById('lightbox')) closeLightbox();
 }
+
+// Handle back button / gesture: if lightbox is open, close it and stay on page
+window.addEventListener('popstate', (event) => {
+  if (document.getElementById('lightbox').classList.contains('active')) {
+    closeLightbox();
+    // Prevent further navigation by pushing a clean state (optional)
+    if (window.lightboxStateActive) {
+      window.lightboxStateActive = false;
+      // Don't push another state to avoid loop; just leave as is
+    }
+  }
+});
 
 function downloadImage(imgUrl, filename) {
   fetch(imgUrl)
@@ -630,7 +651,7 @@ function downloadResume() {
     });
 }
 
-// Theme, nav, filters, scroll
+// Theme toggle
 const root = document.documentElement;
 const themeBtn = document.getElementById('themeBtn');
 const saved = localStorage.getItem('theme') || 'light';
@@ -642,30 +663,28 @@ themeBtn.addEventListener('click',()=>{
   localStorage.setItem('theme', isDark?'light':'dark');
 });
 
+// Mobile menu
 function toggleMenu(){document.getElementById('hamburger').classList.toggle('open');document.getElementById('mobileMenu').classList.toggle('open');document.body.style.overflow=document.getElementById('mobileMenu').classList.contains('open')?'hidden':'';}
 function closeMenu(){document.getElementById('hamburger').classList.remove('open');document.getElementById('mobileMenu').classList.remove('open');document.body.style.overflow='';}
 
+// Active nav on scroll
 const sections = document.querySelectorAll('section[id], div[id]');
 const navAs = document.querySelectorAll('.nav-links a');
 window.addEventListener('scroll',()=>{let sy=window.scrollY;document.getElementById('navbar').classList.toggle('scrolled', sy>20);document.getElementById('backTop').classList.toggle('visible', sy>400);let cur='';sections.forEach(s=>{if(sy >= s.offsetTop-120) cur=s.id});navAs.forEach(a=>{a.classList.toggle('active', a.getAttribute('href')==='#'+cur);});});
 
+// Filter skills
 document.querySelectorAll('[data-filter]').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('[data-filter]').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const f=btn.dataset.filter;document.querySelectorAll('[data-cat]').forEach(pill=>{pill.classList.toggle('hidden', f!=='all' && pill.dataset.cat!==f);});});});
+// Filter certificates
 document.querySelectorAll('[data-cert-filter]').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('[data-cert-filter]').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const f=btn.dataset.certFilter;document.querySelectorAll('.cert-card').forEach(card=>{card.classList.toggle('hidden', f!=='all' && card.dataset.ctag!==f);});});});
 
+// Fade-up observer
 const obs = new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting) e.target.classList.add('visible')});},{threshold:0.1});
 document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+
+// Initialize
 renderCerts();
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeLightbox();});
-
-// Handle back gesture to close lightbox
-window.addEventListener('popstate', function(event) {
-  if (document.getElementById('lightbox').classList.contains('active')) {
-    closeLightbox();
-  }
-});
-
-// Resume download with no history interference
-document.getElementById('resumeDownloadBtn').addEventListener('click', function(e) {
+document.getElementById('resumeDownloadBtn').addEventListener('click', (e) => {
   e.preventDefault();
   downloadResume();
 });
